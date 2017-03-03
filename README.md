@@ -19,3 +19,11 @@ Tetrimino „S” – tetrimino „O” po przesunięciu dwóch górnych element
 Tetrimino „Z” – tetrimino „O” po przesunięciu dwóch górnych elementów w lewo.
 Pary „L” i „J” oraz „S” i „Z” przedstawiają lustrzane odbicia, jednak nie można poprzez obrót jednego utworzyć drugiego.
 
+##Harmonogram pracy
+Tydzień 1. Stworzenie dokumentacji, zawierającej cel i opis projektu. Konfiguracja kompilatora PyCharm do współpracy z platformą GitHub
+Tydzień 2. Napisanie pierwszych linii kodu. Import niezbędnych bibliotek
+Tydzień 3. Stworzenie planszy i klocków
+Tydzień 4. Implementacja rotacji i przesunięć
+Tydzień 5. Dodanie animacji i efektów wizualnych
+Tydzień 6. Dodanie nowych funkcjonalności, poprawienie wyglądu gry
+Tydzień 7. Oddanie projektu
