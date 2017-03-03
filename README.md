@@ -26,3 +26,9 @@
 ######Tydzień 5. Dodanie animacji i efektów wizualnych
 ######Tydzień 6. Dodanie nowych funkcjonalności, poprawienie wyglądu gry
 ######Tydzień 7. Oddanie projektu
+
+###Źródła
+
+######https://inventwithpython.com/pygame/chapter7.html
+######https://gist.github.com/silvasur/565419
+######http://zetcode.com/gui/pyqt4/thetetrisgame/
