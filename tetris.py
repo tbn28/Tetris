@@ -47,7 +47,9 @@ class Tetris:
                        't': [['*', '*', '*'],
                              ['', '*', '']]
                        }
-        self.parent.bind('<Down>', self.down)
+        self.parent.bind('<Down>', self.shift)
+        self.parent.bind('<Left>', self.shift)
+        self.parent.bind('<Right>', self.shift)
 
     def tick(self):
         if not self.piece_is_active:
@@ -57,7 +59,7 @@ class Tetris:
 
         #self.parent.after(self.tickrate, self.tick)
 
-    def down(self, event = None):
+    def shift(self, event=None):
         if not self.piece_is_active:
             return
 
@@ -66,26 +68,69 @@ class Tetris:
         l = len(self.active_piece['shape'])
         w = len(self.active_piece['shape'][0])
 
-        if r + l >= self.board_height:
-            self.settle()
-            return
+        direction = (event and event.keysym) or 'Down'
 
-        self.board[r][c:c+w] = [''] * w
-        self.active_piece['row'] += 1
-        r += 1
+        if direction == 'Down':
+            if r + l >= self.board_height:
+                self.settle()
+                return
+            rt = r+l
+            ct = c
+        elif direction == 'Left':
+            if not c:
+                return
+            rt = r
+            ct = c-1
+        elif direction == 'Right':
+            if c+w >= self.board_width:
+                return
+            rt = r
+            ct = c + 1
 
-        for squares, row in zip(self.active_piece['shape'], range(r, r + l)):
-            self.board[row][c:c+w] = squares
+            for row, squares in zip(range(rt, rt + l),
+                                    self.active_piece['shape']
+                                    ):
+                for column, square in zip(range(ct, ct + w), squares):
+                    if square and self.board[row][column]:
+                        print(row, column, square, self.board[row][column])
+                        self.settle()
+                        return
+
+        if direction == 'Down:':
+            self.board[r][c:c+w] = [''] * w
+            self.active_piece['row'] += 1
+            r += 1
+        else:
+            if direction == 'Left':
+                column = c+w
+                self.active_piece['column'] -= 1
+                c -= 1
+            elif direction == 'Right':
+                column = c - 1
+                self.active_piece['column'] += 1
+                c += 1
+            if 0 <= column < self.board_width:
+                for idx in range(r, r+l):
+                    self.board[idx][column] = ''
+
+        for row, squares in zip(range(r, r + l), self.active_piece['shape']):
+            for column, square in zip(range(c, c+w), squares):
+                if square:
+                    self.board[row][column] = square
 
         for id, coords_idx in zip(self.active_piece['piece'], range(len(self.active_piece['coords']))):
             x1, y1, x2, y2 = self.active_piece['coords'][coords_idx]
-            y1 += self.square_width
-            y2 += self.square_width
+            if direction == 'Down':
+                y1 += self.square_width
+                y2 += self.square_width
+            elif direction == 'Left':
+                x1 -= self.square_width
+                x2 -= self.square_width
+            elif direction == 'Right':
+                x1 += self.square_width
+                x2 += self.square_width
             self.active_piece['coords'][coords_idx] = x1, y1, x2, y2
             self.canvas.coords(id, self.active_piece['coords'][coords_idx])
-
-    def shift(self, direction):
-        pass
 
     def rotate(self, direction):
         pass
