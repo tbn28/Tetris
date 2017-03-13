@@ -8,6 +8,7 @@ from matrix_rotation import rotate_array
 
 class Tetris:
     def __init__(self, parent):
+        parent.title('Tetris')
         self.parent = parent
         self.board_width = 10
         self.board_height = 24
@@ -54,7 +55,6 @@ class Tetris:
     def tick(self):
         if not self.piece_is_active:
             self.spawn()
-            self.piece_is_active = not self.piece_is_active
 
 
         #self.parent.after(self.tickrate, self.tick)
@@ -87,31 +87,28 @@ class Tetris:
             rt = r
             ct = c + 1
 
-            for row, squares in zip(range(rt, rt + l),
-                                    self.active_piece['shape']
+        for row, squares in zip(range(rt, rt + l),
+                                self.active_piece['shape']
                                     ):
-                for column, square in zip(range(ct, ct + w), squares):
-                    if square and self.board[row][column]:
-                        print(row, column, square, self.board[row][column])
+            for column, square in zip(range(ct, ct + w), squares):
+                if square and self.board[row][column] == 'x':
+                    print(row, column, square, self.board[row][column])
+                    if direction == 'Down':
                         self.settle()
-                        return
+                    return
 
-        if direction == 'Down:':
-            self.board[r][c:c+w] = [''] * w
+        for row in self.board:
+            row[:] = ['' if cell == '*' else cell for cell in row]
+
+        if direction == 'Down':
             self.active_piece['row'] += 1
             r += 1
-        else:
-            if direction == 'Left':
-                column = c+w
-                self.active_piece['column'] -= 1
-                c -= 1
-            elif direction == 'Right':
-                column = c - 1
-                self.active_piece['column'] += 1
-                c += 1
-            if 0 <= column < self.board_width:
-                for idx in range(r, r+l):
-                    self.board[idx][column] = ''
+        elif direction == 'Left':
+            self.active_piece['column'] -= 1
+            c -= 1
+        elif direction == 'Right':
+            self.active_piece['column'] += 1
+            c += 1
 
         for row, squares in zip(range(r, r + l), self.active_piece['shape']):
             for column, square in zip(range(c, c+w), squares):
@@ -137,10 +134,15 @@ class Tetris:
 
     def settle(self):
         pass
-        self.piece_is_active = not self.piece_is_active
+        self.piece_is_active = False
         print('hyc')
+        for row in self.board:
+            row[:] = ['x' if cell == '*' else cell for cell in row]
+            print(row)
+        self.parent.after(self.tickrate, self.spawn())
 
     def spawn(self):
+        self.piece_is_active = True
         shape = self.shapes[random.choice('szrloit')]
         shape = rotate_array(shape, random.choice((0, 90, 180, 270)))
         width = len(shape[0])
