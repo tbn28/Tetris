@@ -62,6 +62,9 @@ class Tetris:
         self.parent.bind('e', self.rotate)
         self.parent.bind('E', self.rotate)
         self.parent.bind('0', self.rotate)
+        self.parent.bind('<Up>', self.rotate)
+        self.parent.bind('w', self.rotate)
+        self.parent.bind('W', self.rotate)
 
     def rotate(self, event=None):
         if not self.active_piece:
@@ -77,7 +80,7 @@ class Tetris:
         if direction in {'q', 'Q'}:
             direction = 'left'
             shape = rotate_array(self.active_piece['shape'], -90)
-        elif direction in {'e', 'E', '0'}:
+        elif direction in {'e', 'E', '0', 'Up', 'w', 'W'}:
             direction = 'right'
             shape = rotate_array(self.active_piece['shape'], 90)
 
@@ -86,33 +89,41 @@ class Tetris:
         rt = y - l//2
         ct = x - w//2
 
+        x_correction, y_correction = self.active_piece['rotation'][self.active_piece['rotation_index']]
+        rt += y_correction
+        ct += x_correction
+
         for row, squares in zip(range(rt, rt + l),
                                 shape
                                 ):
             for column, square in zip(range(ct, ct + w), squares):
-                if square and self.board[row][column] == 'x':
+                if (row not in range(self.board_height)
+                    or column not in range(self.board_width)
+                    or (square and self.board[row][column] == 'x')
+                    ):
                     # print(row, column, square, self.board[row][column])
                     return
 
-        self.active_piece['shape'] = shape
+        square_idxs = iter(range(4))
 
-        x_start = min(coord for tup in self.active_piece['coords'] for coord in (tup[0], tup[2]))
-        y_start = min(coord for tup in self.active_piece['coords'] for coord in (tup[1], tup[3]))
-        squares = iter(range(4))
-
-        for row_coord, row in zip(range(y_start, y_start+l*self.square_width+1, self.square_width),shape):
-            for col_coord, cell in zip(range(x_start, x_start+w*self.square_width+1, self.square_width),
-                                       row):
-                if cell:
-                    square_idx = next(squares)
-                    coord = (col_coord,
-                             row_coord,
-                             col_coord+self.square_width,
-                             row_coord+self.square_width)
+        for row, squares in zip(range(rt, rt + l), shape):
+            for column, square in zip(range(ct, ct + w), squares):
+                if square:
+                    self.board[row][column] = square
+                    square_idx = next(square_idxs)
+                    coord = (column*self.square_width,
+                             row*self.square_width,
+                             (column + 1)*self.square_width,
+                             (row+ 1)*self.square_width)
                     self.active_piece['coords'][square_idx] = coord
                     self.canvas.coords(self.active_piece['piece'][square_idx], coord)
-        for row in shape:
-            print(*(cell or '' for cell in row))
+
+        self.active_piece['shape'] = shape
+        self.active_piece['rotation_index'] = ((self.active_piece['rotation_index'] + 1)
+                                               %
+                                               len(self.active_piece['rotation']))
+        #for row in shape:
+            #print(*(cell or '' for cell in row))
 
     def tick(self):
         if not self.piece_is_active:
@@ -133,13 +144,13 @@ class Tetris:
         w = len(self.active_piece['shape'][0])
 
         direction = (event and event.keysym) or 'Down'
-        print (direction)
+        #print(direction)
 
         if direction in down:
             if r + l >= self.board_height:
                 self.settle()
                 return
-            rt = r+1
+            rt = r + 1
             ct = c
         elif direction in left:
             if not c:
@@ -147,7 +158,7 @@ class Tetris:
             rt = r
             ct = c - 1
         elif direction in right:
-            if c+w >= self.board_width:
+            if c + w >= self.board_width:
                 return
             rt = r
             ct = c + 1
@@ -176,7 +187,7 @@ class Tetris:
             c += 1
 
         for row, squares in zip(range(r, r + l), self.active_piece['shape']):
-            for column, square in zip(range(c, c+w), squares):
+            for column, square in zip(range(c, c + w), squares):
                 if square:
                     self.board[row][column] = square
 
@@ -211,6 +222,7 @@ class Tetris:
         width = len(shape[0])
         start = (10-width)//2
         self.active_piece = {'shape': shape, 'piece': [], 'row': 0, 'column': start, 'coords': []}
+
         for y, row in enumerate(shape):
             self.board[y][start:start+width] = shape[y]
             for x, cell in enumerate(row, start=start):
@@ -221,6 +233,17 @@ class Tetris:
                                                         self.square_width*(y+1)))
                     self.active_piece['piece'].append(
                     self.canvas.create_rectangle(self.active_piece['coords'][-1]))
+
+        self.active_piece['rotation_index'] = 0
+        if len(shape) == len(shape[0]):
+            self.active_piece['rotation'] = [(0, 0)]
+        else:
+            self.active_piece['rotation'] = [(0, 0),
+                                             (1, 0),
+                                             (-1, 1),
+                                             (0, 1)]
+        if len(shape) < len(shape[0]):
+            self.active_piece['rotation_index'] += 1
 
         for row in self.board:
             print(*(cell or '' for cell in row))
