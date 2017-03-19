@@ -5,10 +5,12 @@ import tkinter
 from tkinter import *
 import random
 from matrix_rotation import rotate_array
+import copy
 
 class Shape:
-    def __init__(self, shape, piece, row, column, coords):
+    def __init__(self, shape, key, piece, row, column, coords):
         self.shape = shape
+        self.key = key
         self.piece = piece
         self.row = row
         self.column = column
@@ -20,23 +22,11 @@ class Tetris:
         self.parent = parent
         self.board_width = 10
         self.board_height = 24
-        self.board = [['' for column in range(self.board_width)]
-                      for row in range(self.board_height)]
-        self.field = [[None for column in range(self.board_width)]
-                      for row in range(self.board_height)]
+
         self.width = 300
         self.height = 720
         self.square_width = self.width//10
-        self.canvas = tkinter.Canvas(root, width=self.width, height=self.height)
-        self.canvas.grid(row=0, column=0)
-        self.separator = self.canvas.create_line(0,
-                                                 self.height//6,
-                                                 self.width,
-                                                 self.height//6,
-                                                 width=2)
-        self.tickrate = 1000
-        self.piece_is_active = False
-        self.parent.after(self.tickrate, self.tick)
+
         self.shapes = {'s': [['*', ''],
                              ['*', '*'],
                              ['', '*']],
@@ -86,19 +76,57 @@ class Tetris:
         self.parent.bind('W', self.rotate)
         self.parent.bind('<space>', self.snap)
 
+        self.draw_board()
+
+    def draw_board(self):
+        self.board = [['' for column in range(self.board_width)]
+                      for row in range(self.board_height)]
+        self.field = [[None for column in range(self.board_width)]
+                      for row in range(self.board_height)]
+        self.canvas = tkinter.Canvas(root, width=self.width, height=self.height)
+        self.canvas.grid(row=0, column=0, rowspan=2)
+        self.h_separator = self.canvas.create_line(0,
+                                                 self.height//6,
+                                                 self.width,
+                                                 self.height//6,
+                                                 width=2)
+        self.v_separator = self.canvas.create_line(self.width,
+                                                   0,
+                                                   self.width,
+                                                   self.height,
+                                                   width=2)
+        self.preview_canvas = tkinter.Canvas(root,
+                                        width=5 * self.square_width,
+                                        height=5 * self.square_width)
+        self.preview_canvas.grid(row=0, column=1)
+        self.score_label = tkinter.Label(root,
+                                         text='Score: \n0',
+                                         width=30,
+                                         height=5)
+        self.score_label.grid(row=1, column=1)
+        self.tickrate = 1000
+        self.score = 0
+        self.piece_is_active = False
+        self.preview()
+        self.parent.after(self.tickrate, self.spawn)
+        self.parent.after(self.tickrate*2, self.tick)
+
     def print_board(self):
         for row in self.board:
             print(*(cell or ' ' for cell in row), sep='')
 
-    def check_and_move(self, shape, r, c, l, w):
+    def check(self, shape, r, c, l, w):
         for row, squares in zip(range(r, r + l), shape):
             for column, square in zip(range(c, c + w), squares):
                 if (row not in range(self.board_height)
                     or
                     column not in range(self.board_width)
                     or
-                    (square and self.board[row][column] == 'x')):
+                        (square and self.board[row][column] == 'x')):
                     return
+        return True
+
+    def move(self, shape, r, c, l, w):
         square_idxs = iter(range(4))
 
         for row in self.board:
@@ -109,10 +137,10 @@ class Tetris:
                 if square:
                     self.board[row][column] = square
                     square_idx = next(square_idxs)
-                    coord = (column*self.square_width,
-                             row*self.square_width,
-                             (column + 1 )*self.square_width,
-                             (row + 1)*self.square_width)
+                    coord = (column * self.square_width,
+                             row * self.square_width,
+                             (column + 1) * self.square_width,
+                             (row + 1) * self.square_width)
                     self.active_piece.coords[square_idx] = coord
                     self.canvas.coords(self.active_piece.piece[square_idx], coord)
 
@@ -122,6 +150,10 @@ class Tetris:
         self.print_board()
         return True
 
+    def check_and_move(self, shape, r, c, l, w):
+        if self.check(shape, r, c, l, w):
+            self.move(shape, r, c, l, w)
+            return True
 
     def rotate(self, event=None):
         if not self.piece_is_active:
@@ -164,10 +196,9 @@ class Tetris:
         self.active_piece.rotation_index = rotation_index
 
     def tick(self):
-        if not self.piece_is_active:
-            self.spawn()
-
-        #self.parent.after(self.tickrate, self.tick)
+        if self.piece_is_active:
+            self.shift()
+        self.parent.after(self.tickrate, self.tick)
 
     def shift(self, event=None):
         down = {'Down', 's', 'S'}
@@ -182,7 +213,6 @@ class Tetris:
         w = len(self.active_piece.shape[0])
 
         direction = (event and event.keysym) or 'Down'
-        #print(direction)
 
         if direction in down:
             rt = r + 1
@@ -205,50 +235,78 @@ class Tetris:
             row[:] = ['x' if cell == '*' else cell for cell in row]
         for (x1, y1, x2, y2), id in zip(self.active_piece.coords, self.active_piece.piece):
             self.field[y1//self.square_width][x1//self.square_width] = id
-        indicies = [idx for idx, row in enumerate(self.board) if all(row)]
-        if indicies:
-            self.clear(indicies)
+        indices = [idx for idx, row in enumerate(self.board) if all(row)]
+        if indices:
+            self.score += (1, 2, 5, 10)[len(indices) - 1]
+            self.score_label.config(text='Score: \n{}'.format(self.score))
+            self.clear(indices)
         if any(any(row) for row in self.board[:4]):
             self.lose()
             return
-        self.parent.after(self.tickrate, self.spawn())
+        self.parent.after(self.tickrate, self.spawn)
 
-    def spawn(self):
-        self.piece_is_active = True
+    def preview(self):
+        self.preview_canvas.delete(tkinter.ALL)
         key = random.choice('szrloit')
-        shape = self.shapes[key]
-        shape = rotate_array(shape, random.choice((0, 90, 180, 270)))
+        shape = rotate_array(self.shapes[key], random.choice((0, 90, 180, 270)))
+        self.preview_piece = Shape(shape, key, [], 0, 0, [])
         width = len(shape[0])
-        start = (10-width)//2
-        self.active_piece = Shape(shape, [], 0, start, [])
+        half = self.square_width // 2
 
         for y, row in enumerate(shape):
-            self.board[y][start:start+width] = shape[y]
-            for x, cell in enumerate(row, start=start):
+            for x, cell in enumerate(row):
                 if cell:
-                    self.active_piece.coords.append((self.square_width*x,
-                                                        self.square_width*y,
-                                                        self.square_width*(x+1),
-                                                        self.square_width*(y+1)))
-                    self.active_piece.piece.append(
-                    self.canvas.create_rectangle(self.active_piece.coords[-1],
+                    self.preview_piece.coords.append((self.square_width * x + half,
+                                                        self.square_width * y + half,
+                                                        self.square_width*(x+1) + half,
+                                                        self.square_width*(y+1) + half))
+                    self.preview_piece.piece.append(
+                        self.preview_canvas.create_rectangle(self.preview_piece.coords[-1],
                                                  fill=self.colors[key],
                                                  width=3))
 
-        self.active_piece.rotation_index = 0
+        self.preview_piece.rotation_index = 0
+        self.preview_piece.i_nudge = (len(shape) < len(shape[0])
+                                                      ) and 4 in (len(shape), len(shape[0]))
+        self.preview_piece.row = self.preview_piece.i_nudge
+
         if 3 in (len(shape), len(shape[0])):
-            self.active_piece.rotation = [(0, 0),
+            self.preview_piece.rotation = [(0, 0),
                                           (1, 0),
                                           (-1, 1),
                                           (0, -1)]
         else:
-            self.active_piece.rotation = [(1, -1),
+            self.preview_piece.rotation = [(1, -1),
                                           (0, 1),
                                           (0, 0),
                                           (-1, 0)]
         if len(shape) < len(shape[0]):
-            self.active_piece.rotation_index += 1
+            self.preview_piece.rotation_index += 1
 
+    def spawn(self):
+        self.piece_is_active = True
+        self.active_piece = copy.deepcopy(self.preview_piece)
+        self.preview()
+        width = len(self.active_piece.shape[0])
+        start = (10 - width)//2
+        self.active_piece.column = start
+        self.active_piece.start = start
+        self.active_piece.coords = []
+        self.active_piece.piece = []
+
+        for y, row in enumerate(self.active_piece.shape):
+            self.board[y+self.active_piece.i_nudge][start:start+width] = self.active_piece.shape[y]
+            for x, cell in enumerate(row, start=start):
+                if cell:
+                    self.active_piece.coords.append((self.square_width*x,
+                                                     self.square_width*(y+self.active_piece.i_nudge),
+                                                     self.square_width*(x+1),
+                                                     self.square_width*(y+self.active_piece.i_nudge+1)))
+                    self.active_piece.piece.append(
+                    self.canvas.create_rectangle(self.active_piece.coords[-1],
+                                                 fill=self.colors[self.active_piece.key],
+                                                 width = 3)
+                    )
         self.print_board()
 
     def new(self):
@@ -258,8 +316,20 @@ class Tetris:
         pass
 
     def snap(self, event=None):
-        for i in range(24):
-            self.shift()
+        if not self.piece_is_active:
+            return
+        r = self.active_piece.row
+        c = self.active_piece.column
+        l = len(self.active_piece.shape)
+        w = len(self.active_piece.shape[0])
+
+        while self.check(self.active_piece.shape, r, c, l, w):
+            r += 1
+
+        r -= 1
+        self.move(self.active_piece.shape, r, c, l, w)
+
+        self.settle()
 
     def clear(self, indices):
         for idx in indices:
