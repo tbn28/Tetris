@@ -24,6 +24,7 @@ class Shape:
 class Tetris:
     def __init__(self, parent):
         self.debug = 'debug' in sys.argv[1:]
+        self.random = 'random' in sys.argv[1:]
         parent.title('Tetris')
         self.parent = parent
         if audio:
@@ -124,7 +125,7 @@ class Tetris:
             self.parent.after_cancel(self.ticking)
         if self.spawning:
             self.parent.after_cancel(self.spawning)
-        self.score_var.set('Score:/n0')
+        self.score_var.set('Score:\n0')
         self.board = [['' for column in range(self.board_width)]
                       for row in range(self.board_height)]
         self.field = [[None for column in range(self.board_width)]
@@ -153,6 +154,7 @@ class Tetris:
         self.score = 0
         self.piece_is_active = False
         self.paused = False
+        self.bag = ()
         self.preview()
 
         self.spawning = self.parent.after(self.tickrate, self.spawn)
@@ -324,7 +326,12 @@ class Tetris:
 
     def preview(self):
         self.preview_canvas.delete(tkinter.ALL)
-        key = random.choice('szrloit')
+        if not self.bag:
+            if self.random:
+                self.bag.append(random.choice('szrloit'))
+            else:
+                self.bag = random.sample('szrloit', 7)
+        key = self.bag.pop()
         shape = rotate_array(self.shapes[key], random.choice((0, 90, 180, 270)))
         self.preview_piece = Shape(shape, key, [], 0, 0, [])
         width = len(shape[0])
