@@ -27,7 +27,7 @@ class Tetris:
         self.random = 'random' in sys.argv[1:]
         parent.title('Tetris')
         self.parent = parent
-        if audio:
+        if audio: # if the import succeeded
             pygame.mixer.init(buffer=512)
             try:
                 self.sounds = {name:pygame.mixer.Sound(name)
@@ -203,16 +203,18 @@ class Tetris:
                     or
                     column not in range(self.board_width)
                     or
-                        (square and self.board[row][column] == 'x')):
+                        (square and self.board[row][column] == 'x')): # make sure it's on the board
                     return
         return True
 
     def move(self, shape, r, c, l, w):
-        square_idxs = iter(range(4))
+        square_idxs = iter(range(4)) # iterator of 4 indices
 
+        # remove shape from board
         for row in self.board:
             row[:] = ['' if cell == '*' else cell for cell in row]
 
+        # put shape onto board and piece onto canvas
         for row, squares in zip(range(r, r + l), shape):
             for column, square in zip(range(c, c + w), squares):
                 if square:
@@ -246,13 +248,14 @@ class Tetris:
         c = self.active_piece.column
         l = len(self.active_piece.shape)
         w = len(self.active_piece.shape[0])
-        x = c + w//2
-        y = r + l//2
+        x = c + w//2 # center column for old shape
+        y = r + l//2 # center row for old shape
 
         direction = event.keysym
 
         if direction in {'q', 'Q'}:
             shape = rotate_array(self.active_piece.shape, -90)
+            # 4 is number of sides of a rectangle
             rotation_index = (self.active_piece.rotation_index - 1) % 4
             rx, ry = self.active_piece.rotation[rotation_index]
             rotation_offsets = -rx, -ry
@@ -262,15 +265,18 @@ class Tetris:
             rotation_offsets = self.active_piece.rotation[rotation_index]
             rotation_index = (rotation_index + 1) % 4
 
-        l = len(shape)
-        w = len(shape[0])
-        rt = y - l//2
-        ct = x - w//2
+        l = len(shape) # length of new shape
+        w = len(shape[0]) # width of new shape
+        rt = y - l//2 # row of new shape
+        ct = x - w//2 # column of new shape
 
         x_correction, y_correction = rotation_offsets
         rt += y_correction
         ct += x_correction
 
+        # rotation prefers upper left corner -
+        # possibly hard-code a specific "center" square
+        # for each piece/shape
         if not self.check_and_move(shape, rt, ct, l, w):
             return
 
@@ -294,10 +300,10 @@ class Tetris:
         w = len(self.active_piece.shape[0])
 
         direction = (event and event.keysym) or 'Down'
-
+        # use event.keysym to check event/direction
         if direction in down:
-            rt = r + 1
-            ct = c
+            rt = r + 1 # row, temporary
+            ct = c # column, temporary
         elif direction in left:
             rt = r
             ct = c - 1
@@ -317,7 +323,7 @@ class Tetris:
         for (x1, y1, x2, y2), id in zip(self.active_piece.coords, self.active_piece.piece):
             self.field[y1//self.square_width][x1//self.square_width] = id
         indices = [idx for idx, row in enumerate(self.board) if all(row)]
-        if indices:
+        if indices: # clear rows, score logic
             self.score += (1, 2, 5, 10)[len(indices) - 1]
             self.score_lines += len(indices)
             self.clear(indices)
